@@ -125,8 +125,8 @@ elif FORCEFIELD == "ani":
 # make directory to save equilibration data
 pdb_name = os.path.splitext(os.path.basename(TARGET_PDB))[0]
 output_dir = f"equilibration_{pdb_name}_{FORCEFIELD}_{datetime.datetime.now().strftime('%H%M%S_%d%m%y')}"
-os.mkdir(output_dir)
-os.chdir(output_dir)
+os.makedirs(os.path.join("outputs", output_dir))
+os.chdir(os.path.join("outputs", output_dir))
 
 # Load pdb into modeller and add solvent
 modeller = Modeller(pdb.topology, pdb.positions)
