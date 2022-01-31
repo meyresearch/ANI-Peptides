@@ -2,6 +2,43 @@
 
 A small collection of scripts to equilibrate and perform production runs of peptides using ANI and AMBER
 
+## Installation
+
+```
+conda create -n ani 
+conda activate ani
+conda install -c conda-forge openmm openmm-torch pytorch torchani cudatoolkit=11.5
+git clone https://github.com/yueyericardo/openmm-ml
+pip install ./openmm-ml/.
+```
+
+What are these dependencies used for?
+
+*   **OpenMM**
+
+ Base molecular simulation toolkit
+
+*   **TorchANI**
+
+ PyTorch Implementation of ANI
+
+*   **PyTorch**
+
+ TorchANI runs on the PyTorch machine learning framework 
+
+*   **OpenMM-Torch**
+
+ A plugin for OpenMM that allows PyTorch static computation graphs (TorchANI) to be used in OpenMM as a TorchForce object, an OpenMM Force class 
+
+*   **OpenMM-ML**
+
+ Implements TorchANI as an OpenMM TorchForce using OpenMM-Torch. The glue that brings everything together!
+
+
+*   **MDAnalysis**
+
+ Trajectory analysis library
+
 ## Usage
 
 In general, you will want to modify the scripts `equilibration.py` and `production.py` to perform simulations in a consistent way, then execute the scripts on your pdbs using the available command line arguments
