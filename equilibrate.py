@@ -112,6 +112,7 @@ if FORCEFIELD not in ["ani", "amber"]:
 
 # Load sample peptide
 pdb = PDBFile(TARGET_PDB)
+pdb.topology.setPeriodicBoxVectors(None)
 
 if FORCEFIELD == "amber":
     # Create AMBER forcefield

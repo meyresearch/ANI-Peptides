@@ -7,7 +7,7 @@ A small collection of scripts to equilibrate and perform production runs of pept
 ```
 conda create -n ani 
 conda activate ani
-conda install -c conda-forge openmm openmm-torch pytorch torchani cudatoolkit=11.5
+conda install -c conda-forge openmm openmm-torch pytorch torchani seaborn matplotlib pandas mdanalysis cudatoolkit=11.5
 git clone https://github.com/yueyericardo/openmm-ml
 pip install ./openmm-ml/.
 ```
@@ -34,10 +34,13 @@ What are these dependencies used for?
 
  Implements TorchANI as an OpenMM TorchForce using OpenMM-Torch. The glue that brings everything together!
 
-
 *   **MDAnalysis**
 
  Trajectory analysis library
+
+*   **Seaborn, Matplotlib, Pandas**
+
+ Data plotting and manipulation
 
 ## Usage
 
