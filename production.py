@@ -5,6 +5,7 @@ from openmm.app import *
 from openmm import *
 from openmm.unit import *
 from openmmml import MLPotential
+from dcd_subset.dcdsubsetfilereporter import DCDSubsetReporter
 import pandas as pd
 import seaborn as sns 
 import matplotlib.pyplot as plt
@@ -31,12 +32,13 @@ def PrintReporter(interval, total_steps):
         interval,
         progress = True,
         remainingTime = True,
+        speed=True,
         totalSteps = total_steps,
     )
 
 def production(
     coords: Topology,
-    forcefield: ForceField,
+    system: ForceField,
     output_state_data_filename = "production_state_data.csv",
     output_dcd_filename = "production_output.dcd",
     temperature: Quantity = 300*kelvin,
@@ -49,14 +51,14 @@ def production(
 
     total_steps = int(duration / step_size)
     
-    # Create system
-    system = forcefield.createSystem(
-        coords.topology, 
-        nonbondedMethod=PME,
-        nonbondedCutoff=1*nanometer,
-        constraints=AllBonds,
-        hydrogenMass=4*amu,
-    )
+    # # Create system
+    # system = forcefield.createSystem(
+    #     coords.topology, 
+    #     nonbondedMethod=PME,
+    #     nonbondedCutoff=1*nanometer,
+    #     constraints=AllBonds,
+    #     hydrogenMass=4*amu,
+    # )
     # Create constant temp integrator
     integrator = LangevinMiddleIntegrator(
         temperature,
@@ -68,7 +70,7 @@ def production(
         coords.topology,
         system,
         integrator,
-        # Platform.getPlatformByName("OpenCL" if FORCEFIELD == "ani" else "CUDA")
+        Platform.getPlatformByName("CUDA")
     )
     simulation.context.setPositions(coords.positions)
     state_reporter = StateDataReporter(
@@ -83,7 +85,7 @@ def production(
     )
     simulation.reporters.append(PrintReporter(steps_per_saved_frame*10, total_steps))
     simulation.reporters.append(state_reporter)
-    simulation.reporters.append(DCDReporter(output_dcd_filename, steps_per_saved_frame))
+    simulation.reporters.append(DCDSubsetReporter(output_dcd_filename, steps_per_saved_frame))
 
     # Production run  
     print("Running production...")
@@ -121,6 +123,28 @@ if FORCEFIELD == "amber":
     )
 elif FORCEFIELD == "ani":
     forcefield = MLPotential('ani2x')
+elif FORCEFIELD == "ani_mixed":
+    amber_system = ForceField(
+        'amber14-all.xml',
+        'amber14/tip3p.xml'
+    ).createSystem(
+        pdb.topology,
+        nonbondedMethod=NoCutoff,
+        nonbondedCutoff=1*nanometer,
+        constraints=AllBonds,
+        hydrogenMass=4*amu
+    )
+
+    # Select non-water atoms to be simulated by ANI
+    ani_atoms = [atom.index for atom in pdb.topology.atoms() if atom.residue.name != "HOH"]
+
+    # Setup mixed system
+    potential = openmmml.MLPotential('ani2x')
+    system = potential.createMixedSystem(
+        pdb.topology,
+        amber_system,
+        ani_atoms
+    )
 
 # make directory to save equilibration data
 pdb_name = os.path.splitext(os.path.basename(TARGET_PDB))[0]
@@ -133,8 +157,8 @@ step_size = 4 * femtoseconds
 # Equilibrate
 simulation = production(
     pdb,
-    forcefield,
-    duration=1*microseconds
+    system,
+    duration=1*microseconds,
 )
 
 # Show graphs

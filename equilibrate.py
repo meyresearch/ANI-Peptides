@@ -132,7 +132,7 @@ os.chdir(os.path.join("outputs", output_dir))
 modeller = Modeller(pdb.topology, pdb.positions)
 # modeller.addExtraParticles(forcefield)
 modeller.addHydrogens(forcefield)
-modeller.addSolvent(forcefield, model='tip3p', padding=1*nanometer, neutralize=False)
+modeller.addSolvent(forcefield, model='tip3p', neutralize=False)
 
 step_size = 4 * femtoseconds
 

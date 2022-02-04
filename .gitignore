@@ -1,3 +1,6 @@
 outputs/*
 torchani
 openmm-ml
+model.pt
+.gitignore
+animodel.pt
