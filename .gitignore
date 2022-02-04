@@ -4,3 +4,4 @@ openmm-ml
 model.pt
 .gitignore
 animodel.pt
+.vscode
