@@ -39,7 +39,7 @@ import struct
 import math
 from simtk.unit import picoseconds, nanometers, angstroms, is_quantity, norm
 from simtk.openmm import Vec3
-from simtk.openmm.app.internal.unitcell import computeLengthsAndAngles
+from openmm.app.internal.unitcell import computeLengthsAndAngles
 
 class DCDSubsetFile(object):
     """DCDFile provides methods for creating DCD files.

@@ -35,7 +35,7 @@ __version__ = "1.0"
 import simtk.openmm as mm
 from simtk.openmm.app import DCDFile
 from simtk.unit import nanometer
-from dcdsubsetfile import DCDSubsetFile
+from dcdsubsetfile.dcdsubsetfile import DCDSubsetFile
 import numpy as np
 
 class DCDSubsetReporter(object):

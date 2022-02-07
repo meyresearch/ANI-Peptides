@@ -5,7 +5,7 @@ from openmm.app import *
 from openmm import *
 from openmm.unit import *
 from openmmml import MLPotential
-from dcd_subset.dcdsubsetreporter import DCDSubsetReporter
+from dcdsubsetfile.dcdsubsetreporter import DCDSubsetReporter
 import pandas as pd
 import seaborn as sns 
 import matplotlib.pyplot as plt
@@ -79,7 +79,7 @@ def production(
     simulation.reporters.append(PrintReporter(steps_per_saved_frame, total_steps))
     simulation.reporters.append(state_reporter)
     # Save only a subset of atoms to the trajectory, ignore water
-    saved_atoms  = [atom.index for atom in coords.atoms() if atom.residue.name != "HOH"]
+    saved_atoms  = [atom.index for atom in coords.topology.atoms() if atom.residue.name != "HOH"]
     simulation.reporters.append(DCDSubsetReporter(output_dcd_filename, steps_per_saved_frame, saved_atoms))
     # simulation.reporters.append(DCDReporter(output_dcd_filename, steps_per_saved_frame))
 
@@ -174,7 +174,7 @@ simulation = production(
     pdb,
     system,
     step_size = step_size,
-    duration=1*microseconds,
+    duration=0.3*microseconds,
     output_state_data_filename=os.path.join(output_dir, 'production_state_data.csv'),
     output_dcd_filename=os.path.join(output_dir, 'production_output.dcd')
 )
