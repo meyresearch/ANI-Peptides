@@ -1,9 +1,6 @@
-# Import libraries
-
-from multiprocessing.context import ForkProcess
-from openmm.app import *
-from openmm import *
-from openmm.unit import *
+import openmm
+import openmm.app as app
+import openmm.unit as unit
 from openmmml import MLPotential
 from dcdsubsetfile.dcdsubsetreporter import DCDSubsetReporter
 import pandas as pd
@@ -13,177 +10,215 @@ import matplotlib.ticker as tkr
 import argparse
 import datetime
 import os
+import sys
 
-#########################################
-# DEFINITIONS
-#########################################
+##############################################
+#   CONSTANTS
+##############################################
 
-# Production function - Constant pressure & volume
-
-class StatePrinter:
-    headers = ("Progress:", "Time Remaining:")
-    def write(self, string):
-        string = string.strip()
-        print(string)
-
-def PrintReporter(interval, total_steps):
-    return StateDataReporter(
-        StatePrinter(),
-        interval,
-        progress = True,
-        remainingTime = True,
-        speed = True,
-        totalSteps = total_steps,
-    )
-
-def production(
-    coords: Topology,
-    system: System,
-    output_state_data_filename = "production_state_data.csv",
-    output_dcd_filename = "production_output.dcd",
-    temperature: Quantity = 300*kelvin,
-    friction_coeff: Quantity = 1/femtosecond,
-    step_size: Quantity = 4*femtoseconds,
-    duration: Quantity = 1*nanoseconds,
-    steps_per_saved_frame: int = 250
-):
-    print("Initialising production run...")
-
-    total_steps = int(duration / step_size)
-    
-    # Create constant temp integrator
-    integrator = LangevinMiddleIntegrator(
-        temperature,
-        friction_coeff,
-        step_size
-    )
-    # Create simulation and set initial positions
-    simulation = Simulation(
-        coords.topology,
-        system,
-        integrator,
-        Platform.getPlatformByName("CUDA")
-    )
-    simulation.context.setPositions(coords.positions)
-    state_reporter = StateDataReporter(
-        output_state_data_filename,
-        steps_per_saved_frame,
-        step = True,
-        time = True,
-        speed = True,
-        temperature = True,
-        potentialEnergy = True,
-        kineticEnergy = True,
-        totalEnergy = True,
-    )
-    simulation.reporters.append(PrintReporter(steps_per_saved_frame, total_steps))
-    simulation.reporters.append(state_reporter)
-    # Save only a subset of atoms to the trajectory, ignore water
-    saved_atoms  = [atom.index for atom in coords.topology.atoms() if atom.residue.name != "HOH"]
-    simulation.reporters.append(DCDSubsetReporter(output_dcd_filename, steps_per_saved_frame, saved_atoms))
-    # simulation.reporters.append(DCDReporter(output_dcd_filename, steps_per_saved_frame))
-
-    # Production run  
-    print("Running production...")
-    simulation.step(total_steps)
-    print("Done")
-    return simulation
-
-#########################################
-# LOAD AND EQUILIBRATE
-#########################################
+CHECKPOINT_FN = "checkpoint.chk"
+TRAJECTORY_FN = "trajectory.dcd"
+STATE_DATA_FN = "state_data.csv"
 
 valid_ffs = ['ani', 'amber', "ani_mixed"]
 
+# basic quantity string parsing ("1.2ns" -> openmm.Quantity)
+unit_labels = {
+    "us": unit.microseconds,
+    "ns": unit.nanoseconds,
+    "ps": unit.picoseconds,
+    "fs": unit.femtoseconds
+}
+
+def parse_quantity(s):
+    try:
+        u = s.lstrip('0123456789.')
+        v = s[:-len(u)]
+        return unit.Quantity(
+            float(v),
+            unit_labels[u]
+        )
+    except Exception:
+        raise ValueError(f"Invalid quantity: {s}")
+
+##############################################
+#   PARSE ARGS
+##############################################
+
 parser = argparse.ArgumentParser(description='Production run for an equilibrated peptide.')
-parser.add_argument("pdb", help="Peptide PDB file, should be solvated and equilibrated")
+parser.add_argument("pdb", help="PDB file describing topology and positions. Should be solvated and equilibrated")
 parser.add_argument("ff", help=f"Forcefield/Potential to use: {valid_ffs}")
+parser.add_argument("-r", "--resume", help="Resume simulation from an existing production directory")
+parser.add_argument("-d", "--duration", default="1ns", help="Duration of simulation")
+parser.add_argument("-f", "--savefreq", default="1ps", help="Interval for all reporters to save data")
+parser.add_argument("-s", "--stepsize", default="4fs", help="Step size")
 
 args = parser.parse_args()
 
-TARGET_PDB = args.pdb
-FORCEFIELD = args.ff.lower()
+pdb = args.pdb
+forcefield = args.ff.lower()
+resume = args.resume
+duration = parse_quantity(args.duration)
+savefreq = parse_quantity(args.savefreq)
+stepsize = parse_quantity(args.stepsize)
 
-if FORCEFIELD not in valid_ffs:
-    print(f"Invalid forcefield: {FORCEFIELD}, must be {valid_ffs}")
+total_steps = int(duration / stepsize)
+steps_per_save = int(savefreq / stepsize)
+
+if forcefield not in valid_ffs:
+    print(f"Invalid forcefield: {forcefield}, must be {valid_ffs}")
     quit()
 
+if resume:
+    if not os.path.isdir(resume):
+        print(f"Production directory to resume is not a directory: {resume}")
+        quit()
+
+    # Check all required files exist in prod directory to resume
+    resume_contains = os.listdir(resume)
+    resume_requires = (
+        CHECKPOINT_FN,
+        TRAJECTORY_FN,
+        STATE_DATA_FN
+    )
+
+    if not all(filename in resume_contains for filename in resume_requires):
+        print(f"Production directory to resume must contain files with the following names: {resume_requires}")
+        quit()
+
+    # Use existing output directory
+    output_dir = resume
+else:
+    # Make output directory
+    pdb_filename = os.path.splitext(os.path.basename(pdb))[0]
+    output_dir = f"production_{pdb_filename}_{forcefield}_{datetime.datetime.now().strftime('%H%M%S_%d%m%y')}"
+    output_dir = os.path.join("outputs", output_dir)
+    os.makedirs(output_dir)
+
+##############################################
+#   CREATE SYSTEM
+##############################################
+
 # Load peptide
-pdb = PDBFile(TARGET_PDB)
+pdb = app.PDBFile(pdb)
 pdb.topology.setPeriodicBoxVectors(None)
 
-if FORCEFIELD == "amber":
-    # Create AMBER forcefield
-    system = ForceField(
-        'amber14-all.xml',
-        'amber14/tip3p.xml'
-    ).createSystem(
+peptide_indices = [
+    atom.index 
+    for atom in pdb.topology.atoms()
+    if atom.residue.name != "HOH"
+]
+
+def makeSystem(ff):
+    return ff.createSystem(
         pdb.topology, 
-        nonbondedMethod=CutoffNonPeriodic,
-        nonbondedCutoff=1*nanometer,
-        constraints=AllBonds,
-        hydrogenMass=4*amu,
-    )
-elif FORCEFIELD == "ani":
-    system = MLPotential('ani2x').createSystem(
-        pdb.topology, 
-        nonbondedMethod=CutoffNonPeriodic,
-        nonbondedCutoff=1*nanometer,
-        constraints=AllBonds,
-        hydrogenMass=4*amu,
-    )
-elif FORCEFIELD == "ani_mixed":
-    # Create AMBER system
-    amber_ff = ForceField(
-        'amber14-all.xml',
-        'amber14/tip3p.xml'
-    )
-    
-    amber_system = amber_ff.createSystem(
-        pdb.topology,
-        nonbondedMethod=CutoffNonPeriodic,
-        nonbondedCutoff=1*nanometer,
-        constraints=AllBonds,
-        hydrogenMass=4*amu,
+        nonbondedMethod = app.CutoffNonPeriodic,
+        nonbondedCutoff = 1*unit.nanometer,
+        constraints = app.AllBonds,
+        hydrogenMass = 4*unit.amu,
     )
 
+if forcefield == "amber":    # Create AMBER system
+    system = makeSystem(app.ForceField(
+        'amber14-all.xml',
+        'amber14/tip3p.xml'
+    ))
+elif forcefield == "ani":    # Create ANI system
+    system = makeSystem(MLPotential(
+        'ani2x'
+    ))
+elif forcefield == "ani_mixed":    # Create mixed ANI/AMBER system
+    amber_system = makeSystem(app.ForceField(
+        'amber14-all.xml',
+        'amber14/tip3p.xml'
+    ))
     # Select protein atoms to be simulated by ANI2x
     # Water will be simulated by AMBER for speedup
-    ani_atoms  = [atom.index for atom in pdb.topology.atoms() if atom.residue.name != "HOH"]
-
-    # Create mixed ANI/AMBER system
     system = MLPotential('ani2x').createMixedSystem(
         pdb.topology, 
         amber_system, 
-        ani_atoms
+        peptide_indices
     )
 
-# make directory to save equilibration data
-pdb_name = os.path.splitext(os.path.basename(TARGET_PDB))[0]
-output_dir = f"production_{pdb_name}_{FORCEFIELD}_{datetime.datetime.now().strftime('%H%M%S_%d%m%y')}"
-output_dir = os.path.join("outputs", output_dir)
-os.makedirs(output_dir)
-# os.chdir(os.path.join("outputs", output_dir))
+##############################################
+#   INITIALISE SIMULATION
+##############################################
 
-step_size = 4 * femtoseconds
+print("Initialising production run...")
 
-print(os.path.join(output_dir, 'production_state_data.csv'))
-
-# Run Production
-simulation = production(
-    pdb,
-    system,
-    step_size = step_size,
-    duration=0.3*microseconds,
-    output_state_data_filename=os.path.join(output_dir, 'production_state_data.csv'),
-    output_dcd_filename=os.path.join(output_dir, 'production_output.dcd')
+# Create constant temp integrator
+integrator = openmm.LangevinMiddleIntegrator(
+    300*unit.kelvin,
+    1/unit.femtosecond,
+    stepsize
 )
+# Create simulation and set initial positions
+simulation = app.Simulation(
+    pdb.topology,
+    system,
+    integrator,
+    openmm.Platform.getPlatformByName("CUDA")
+)
+simulation.context.setPositions(pdb.positions)
+if resume:
+    with open(os.path.join(output_dir, CHECKPOINT_FN), "rb") as f:
+        simulation.context.loadCheckpoint(f.read())
+        print("Loaded checkpoint")
 
-simulation.saveCheckpoint(os.path.join(output_dir, 'end_checkpoint.chk'))
+##############################################
+#   DATA REPORTERS
+##############################################
+
+# Reporter to print info to stdout
+simulation.reporters.append(app.StateDataReporter(
+    sys.stdout,
+    steps_per_save,
+    progress = True, # Info to print. Add anything you want here.
+    remainingTime = True,
+    speed = True,
+    totalSteps = total_steps,
+))
+# Reporter to log lots of info to csv
+simulation.reporters.append(app.StateDataReporter(
+    os.path.join(output_dir, STATE_DATA_FN),
+    steps_per_save,
+    step = True,
+    time = True,
+    speed = True,
+    temperature = True,
+    potentialEnergy = True,
+    kineticEnergy = True,
+    totalEnergy = True,
+    append = True if resume else False
+))
+# Reporter to save trajectory
+# Save only a subset of atoms to the trajectory, ignore water
+simulation.reporters.append(DCDSubsetReporter(
+    os.path.join(output_dir, TRAJECTORY_FN), 
+    steps_per_save, 
+    peptide_indices,
+    append = True if resume else False
+))
+# Reporter to save regular checkpoints
+simulation.reporters.append(app.CheckpointReporter(
+    os.path.join(output_dir, CHECKPOINT_FN),
+    steps_per_save
+))
+
+##############################################
+#   PRODUCTION RUN
+##############################################
+
+print("Running production...")
+simulation.step(total_steps)
+print("Done")
+
+# Save final checkpoint and state
+simulation.saveCheckpoint(os.path.join(output_dir, CHECKPOINT_FN))
 simulation.saveState(os.path.join(output_dir, 'end_state.xml'))
 
-# Show graphs
-report = pd.read_csv(os.path.join(output_dir, 'production_state_data.csv'))
+# Make some graphs
+report = pd.read_csv(os.path.join(output_dir, STATE_DATA_FN))
 report = report.melt()
 
 with sns.plotting_context('paper'): 
@@ -191,11 +226,9 @@ with sns.plotting_context('paper'):
     g.map(plt.plot, 'value')
     # format the labels with f-strings
     for ax in g.axes.flat:
-        ax.xaxis.set_major_formatter(tkr.FuncFormatter(lambda x, p: f'{(x * step_size).value_in_unit(nanoseconds):.1f}ns'))
-    plt.savefig(os.path.join(output_dir, 'production.pdf'), bbox_inches='tight')
+        ax.xaxis.set_major_formatter(tkr.FuncFormatter(lambda x, p: f'{(x * stepsize).value_in_unit(unit.nanoseconds):.1f}ns'))
+    plt.savefig(os.path.join(output_dir, 'graphs.png'), bbox_inches='tight')
     
-# ns/day (sanity check ~500ns/day)
-# run for a day, see number of flips
 # print a trajectory of the aaa dihedrals, counting the flips
 # heatmap of phi and psi would be a good first analysis, use mdanalysis 
 # aiming for https://docs.mdanalysis.org/1.1.0/documentation_pages/analysis/dihedrals.html
