@@ -5,3 +5,5 @@ model.pt
 .gitignore
 animodel.pt
 .vscode
+*.pyc
+__pycache__
