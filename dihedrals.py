@@ -1,3 +1,5 @@
+# Based on: http://archive.ambermd.org/201304/0256.html
+
 import MDAnalysis as mda
 from MDAnalysis.analysis.dihedrals import Ramachandran
 import matplotlib.pyplot as plt
