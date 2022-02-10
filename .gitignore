@@ -6,4 +6,4 @@ model.pt
 animodel.pt
 .vscode
 *.pyc
-__pycache__
+**/__pycache__/
