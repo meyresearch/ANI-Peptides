@@ -1,4 +1,5 @@
 # Based on: http://archive.ambermd.org/201304/0256.html
+# https://github.com/fylinhub/2D-free-energy-plots-and-similarity-calculation/blob/master/plot_freeenergy_chi1chi2.ipynb
 
 import MDAnalysis as mda
 from MDAnalysis.analysis.dihedrals import Ramachandran
