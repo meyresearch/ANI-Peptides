@@ -1,9 +1,9 @@
 import mdtraj as md
 import time
 
-TRAJ = "outputs/production_aaa_amber_amber_160126_260122/production_output.dcd"
+TRAJ = "outputs/production_aaa_amber_amber_160126_260122/production_output_test.dcd"
 TOP = "pdbs_equilibrated/aaa_amber.pdb"
-OUT = "output_unsolvated_aaa.dcd"
+OUT = "traj_unsolvated.dcd"
 
 print("Initialising...")
 stride = 10000
