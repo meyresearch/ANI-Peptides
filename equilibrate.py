@@ -1,10 +1,8 @@
 # Import libraries
 
-from multiprocessing.context import ForkProcess
 from openmm.app import *
 from openmm import *
 from openmm.unit import *
-from openmmml import MLPotential
 import pandas as pd
 import seaborn as sns 
 import matplotlib.pyplot as plt
@@ -17,6 +15,14 @@ import os
 # DEFINITIONS
 #########################################
 
+
+CHECKPOINT_FN = "checkpoint.chk"
+TRAJECTORY_FN = "trajectory.dcd"
+STATE_DATA_FN = "state_data.csv"
+TOPOLOGY_FN = "topology.pdb"
+SOLVATED_FN = ""
+
+
 # Equilibration function - Constant pressure & temp
 
 def equilibrate(
@@ -28,7 +34,7 @@ def equilibrate(
     friction_coeff: Quantity = 1/femtosecond,
     step_size: Quantity = 4*femtoseconds,
     time_per_temp_increment: Quantity = 0.005*nanoseconds,
-    time_final_stage: Quantity = 0.05*nanoseconds,
+    time_final_stage: Quantity = 0.1*nanoseconds,
 ):
     print("Initialising equilibration run...")
     # adjust the range to include the highest temp (stop value)
@@ -95,33 +101,23 @@ def equilibrate(
 # LOAD AND EQUILIBRATE
 #########################################
 
-valid_ffs = ['ani', 'amber']
-
-parser = argparse.ArgumentParser(description='Equilibrate a peptide.')
-parser.add_argument("pdb", help="Peptide PDB file")
-parser.add_argument("ff", help=f"Forcefield/Potential to use: {valid_ffs}")
+parser = argparse.ArgumentParser(description='Equilibrate a peptide using AMBER and create directory structure for production runs')
+parser.add_argument("pdb", help="Unsolvated peptide PDB file")
+parser.add_argument("-n", "--name", default="", help="Name for the output directory")
 
 args = parser.parse_args()
 
 TARGET_PDB = args.pdb
-FORCEFIELD = args.ff.lower()
-
-if FORCEFIELD not in ["ani", "amber"]:
-    print(f"Invalid forcefield: {FORCEFIELD}, must be {valid_ffs}")
-    quit()
 
 # Load sample peptide
 pdb = PDBFile(TARGET_PDB)
 pdb.topology.setPeriodicBoxVectors(None)
 
-if FORCEFIELD == "amber":
-    # Create AMBER forcefield
-    forcefield = ForceField(
-        'amber14-all.xml',
-        'amber14/tip3p.xml'
-    )
-elif FORCEFIELD == "ani":
-    forcefield = MLPotential('ani2x')
+# Create AMBER forcefield
+forcefield = ForceField(
+    'amber14-all.xml',
+    'amber14/tip3p.xml'
+)
 
 # make directory to save equilibration data
 pdb_name = os.path.splitext(os.path.basename(TARGET_PDB))[0]
