@@ -1,18 +1,20 @@
 # ANI-Peptides
 
-A small collection of scripts to equilibrate and perform production runs of peptides using ANI and AMBER
+A collection of scripts to equilibrate and perform production runs of peptides using ANI and AMBER
 
 ## Installation
 
+Developed on Ubuntu 20.4 with Nvidia driver 510 and CUDA 11.6
+Tested working on Ubuntu 20.4 Nvidia driver 495 and CUDA 11.5
+Minimum CUDA 11.4 required
+
 ```
-conda create -n ani 
-conda activate ani
-conda install -c conda-forge openmm openmm-torch pytorch torchani seaborn matplotlib pandas mdanalysis cudatoolkit=11.5
-git clone https://github.com/yueyericardo/openmm-ml
+conda env create -n ani_test -f environment.yml
+git clone https://github.com/meyresearch/openmm-ml
 pip install ./openmm-ml/.
 ```
 
-What are these dependencies used for?
+Key dependencies:
 
 *   **OpenMM**
 
