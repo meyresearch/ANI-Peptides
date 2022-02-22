@@ -49,6 +49,7 @@ parser = argparse.ArgumentParser(description='Production run for an equilibrated
 parser.add_argument("pdb", help="PDB file describing topology and positions. Should be solvated and equilibrated")
 parser.add_argument("ff", help=f"Forcefield/Potential to use: {valid_ffs}")
 parser.add_argument("-r", "--resume", help="Resume simulation from an existing production directory")
+parser.add_argument("-g", "--gpu", default="", help="Choose CUDA device(s) to target [note - ANI must run on GPU 0]")
 parser.add_argument("-d", "--duration", default="1ns", help="Duration of simulation")
 parser.add_argument("-f", "--savefreq", default="1ps", help="Interval for all reporters to save data")
 parser.add_argument("-s", "--stepsize", default="4fs", help="Step size")
@@ -146,6 +147,8 @@ elif forcefield == "ani_mixed":    # Create mixed ANI/AMBER system
 
 print("Initialising production run...")
 
+properties = {'CudaDeviceIndex': args.gpu}
+
 # Create constant temp integrator
 integrator = openmm.LangevinMiddleIntegrator(
     300*unit.kelvin,
@@ -157,7 +160,8 @@ simulation = app.Simulation(
     pdb.topology,
     system,
     integrator,
-    openmm.Platform.getPlatformByName("CUDA")
+    openmm.Platform.getPlatformByName("CUDA"),
+    properties
 )
 simulation.context.setPositions(pdb.positions)
 if resume:
