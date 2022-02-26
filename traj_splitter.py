@@ -75,12 +75,15 @@ print(f"{total_frames} frames total             ")
 
 top = md.load(TOP).topology
 heavy_atoms = top.select("symbol != H")
+heavy_atoms = top.select("protein")
 
 print(f"Starting...")
 time_start = time.time()
 traj = md.iterload(TRAJ, top=TOP, chunk=FRAMES_PER_SUBTRAJ, atom_indices=heavy_atoms)
 reference=None
 chunk_xyzs = []
+chunk_dihedrals = []
+
 for i, chunk in enumerate(traj):
     if not reference:
         reference = chunk
@@ -88,9 +91,12 @@ for i, chunk in enumerate(traj):
         reference
     )
 
-    # this is pretty gross use of memory..
-    # Ideally msm analysis should be able to open a collection of short trajs iteratively, not in a single .npz archve
-    chunk_xyzs.append(chunk.xyz)
+    # this is not ideal memory usage and might cause problems for large trajectories.
+    # we're iteratively loading and processing a trajectory, just to accumulate it all in memory then dump into a .npz
+    # Ideally msm analysis should be able to open a collection of short trajs iteratively, rather thank from a single .npz archve
+    # chunk_xyzs.append(chunk.xyz)
+    # chunk_dihedrals.append(md.compute_phi(chunk))
+    # chunk_dihedrals.append(md.compute_psi())
 
     subtraj_savename = os.path.join(output_dir, f"{i}.{args.format}")
     with md.open(subtraj_savename, mode="w") as fh:
@@ -107,7 +113,7 @@ for i, chunk in enumerate(traj):
 print("Trajectory splitting complete" + " "*40)
 
 print("Creating .NPZ archive...")
-archive_savename = os.path.join(output_dir, f"{i}.{args.format}")
+archive_savename = os.path.join(output_dir, f"traj_split_archive")
 np.savez(archive_savename, *chunk_xyzs)
 
 print("Done")
