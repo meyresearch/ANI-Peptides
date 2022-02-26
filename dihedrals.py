@@ -61,7 +61,7 @@ def free_energy(phi, psi):
     extent = [xedges[0], xedges[-1], yedges[0], yedges[-1]]
 
     # delta G = RT*ln(P)
-    heatmap = np.log(heatmap/heatmap.max()) * (8.314/4.184) * temperature * -0.001
+    heatmap = np.log(heatmap/heatmap.sum()) * (8.314/4.184) * temperature * -0.001
     plt.imshow(heatmap, extent=extent, origin='lower', interpolation=None, cmap='gist_earth')
     ax = plt.gca()
     ax.xaxis.set_major_formatter(plt.FuncFormatter(degrees_fmt))
