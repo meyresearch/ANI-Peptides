@@ -31,7 +31,7 @@ def equilibrate(
     final_pressure: Quantity = 1*atmosphere,
     temp_range: range = range(0, 300, 25),
     output_state_data_filename = "equilibration_state_data.csv",
-    friction_coeff: Quantity = 1/femtosecond,
+    friction_coeff: Quantity = 1/picosecond,
     step_size: Quantity = 4*femtoseconds,
     time_per_temp_increment: Quantity = 0.005*nanoseconds,
     time_final_stage: Quantity = 0.1*nanoseconds,
@@ -66,7 +66,6 @@ def equilibrate(
         coords.topology,
         system,
         integrator,
-        # Platform.getPlatformByName("OpenCL" if FORCEFIELD == "ani" else "CUDA")
     )
     simulation.context.setPositions(coords.positions)
     state_reporter = StateDataReporter(
@@ -88,11 +87,10 @@ def equilibrate(
         simulation.step(steps_per_temp_increment)
     # Final equilibration, constant pressure 
     print(f"Final equilibration at {final_pressure} for {time_final_stage}")
-    barostat = MonteCarloBarostat(
+    system.addForce(MonteCarloBarostat(
         final_pressure,
         temperatures.max()
-    )
-    system.addForce(barostat)
+    ))
     simulation.step(steps_final_stage)
     print("Done")
     return simulation
@@ -101,23 +99,15 @@ def equilibrate(
 # LOAD AND EQUILIBRATE
 #########################################
 
-parser = argparse.ArgumentParser(description='Equilibrate a peptide using AMBER and create directory structure for production runs')
+parser = argparse.ArgumentParser(description='Equilibrate a peptide and create directory structure for production runs')
 parser.add_argument("pdb", help="Unsolvated peptide PDB file")
 parser.add_argument("-n", "--name", default="", help="Name for the output directory")
+parser.add_argument("ff", help="Forcefield to use for equilibration")
 
 args = parser.parse_args()
 
+FORCEFIELD = args.ff
 TARGET_PDB = args.pdb
-
-# Load sample peptide
-pdb = PDBFile(TARGET_PDB)
-pdb.topology.setPeriodicBoxVectors(None)
-
-# Create AMBER forcefield
-forcefield = ForceField(
-    'amber14-all.xml',
-    'amber14/tip3p.xml'
-)
 
 # make directory to save equilibration data
 pdb_name = os.path.splitext(os.path.basename(TARGET_PDB))[0]
@@ -125,11 +115,23 @@ output_dir = f"equilibration_{pdb_name}_{FORCEFIELD}_{datetime.datetime.now().st
 os.makedirs(os.path.join("outputs", output_dir))
 os.chdir(os.path.join("outputs", output_dir))
 
+# Create AMBER forcefield
+forcefield = ForceField(
+    'amber14-all.xml',
+    'amber14/tip3p.xml'
+)
+
+# Load sample peptide
+assert os.path.isfile(TARGET_PDB), f"PDB file not found: {TARGET_PDB}"
+pdb = PDBFile(TARGET_PDB)
+# pdb.topology.setPeriodicBoxVectors(None)
 # Load pdb into modeller and add solvent
 modeller = Modeller(pdb.topology, pdb.positions)
-# modeller.addExtraParticles(forcefield)
 modeller.addHydrogens(forcefield)
-modeller.addSolvent(forcefield, model='tip3p', neutralize=False)
+modeller.addSolvent(forcefield, model='tip3p', neutralize=False, padding=0.7*nanometer)
+# modeller.addExtraParticles(forcefield)
+print("periodic vectors: ", modeller.topology.getPeriodicBoxVectors())
+print("cell dimensions: ", modeller.topology.getUnitCellDimensions())
 
 step_size = 4 * femtoseconds
 
@@ -138,8 +140,8 @@ simulation = equilibrate(
     modeller,
     forcefield,
     temp_range = range(0, 300, 20),
-    time_per_temp_increment = 0.001 * nanoseconds,
-    time_final_stage = 0.05 * nanoseconds,
+    time_per_temp_increment = 0.05 * nanoseconds,
+    time_final_stage = 1 * nanoseconds,
     step_size = step_size,
 )
 
@@ -160,8 +162,9 @@ with sns.plotting_context('paper'):
     g.map(plt.plot, 'value')
     # format the labels with f-strings
     for ax in g.axes.flat:
-        ax.xaxis.set_major_formatter(tkr.FuncFormatter(lambda x, p: f'{(x * step_size).value_in_unit(picoseconds):.1f}ps'))
+        ax.xaxis.set_major_formatter(tkr.FuncFormatter(lambda x, p: f'{(x * step_size).value_in_unit(nanoseconds):.1f}ns'))
     plt.savefig('equilibration.pdf', bbox_inches='tight')
+    plt.savefig('equilibration.png', bbox_inches='tight')
     
 # ns/day (sanity check ~500ns/day)
 # run for a day, see number of flips
