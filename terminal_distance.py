@@ -60,7 +60,7 @@ for i, chunk in enumerate(traj):
     cl = len(chunk)
     results[i*cl:(i+1)*cl] = md.compute_distances(
         chunk, 
-        periodic=False, 
+        periodic=True, 
         atom_pairs=terminal_carbons
     )[:, 0]
     speed = chunk_size // (time.time() - time_start)
