@@ -2,6 +2,7 @@ import openmm
 import openmm.app as app
 import openmm.unit as unit
 from openmmml import MLPotential
+# import mdtraj as md
 from dcdsubsetfile.dcdsubsetreporter import DCDSubsetReporter
 import pandas as pd
 import seaborn as sns 
@@ -102,7 +103,7 @@ else:
 
 # Load peptide
 pdb = app.PDBFile(pdb)
-pdb.topology.setPeriodicBoxVectors(None)
+# pdb.topology.setPeriodicBoxVectors(None)
 
 peptide_indices = [
     atom.index 
@@ -113,7 +114,8 @@ peptide_indices = [
 def makeSystem(ff):
     return ff.createSystem(
         pdb.topology, 
-        nonbondedMethod = app.CutoffNonPeriodic,
+        # nonbondedMethod = app.CutoffNonPeriodic,
+        nonbondedMethod = app.PME,
         nonbondedCutoff = 1*unit.nanometer,
         constraints = app.AllBonds,
         hydrogenMass = 4*unit.amu,
@@ -152,7 +154,7 @@ properties = {'CudaDeviceIndex': args.gpu}
 # Create constant temp integrator
 integrator = openmm.LangevinMiddleIntegrator(
     300*unit.kelvin,
-    1/unit.femtosecond,
+    1/unit.picosecond,
     stepsize
 )
 # Create simulation and set initial positions
@@ -197,6 +199,12 @@ simulation.reporters.append(app.StateDataReporter(
 ))
 # Reporter to save trajectory
 # Save only a subset of atoms to the trajectory, ignore water
+# simulation.reporters.append(md.reporters.DCDReporter(
+#     os.path.join(output_dir, TRAJECTORY_FN), 
+#     steps_per_save, 
+#     peptide_indices,
+#     append = True if resume else False
+# ))
 simulation.reporters.append(DCDSubsetReporter(
     os.path.join(output_dir, TRAJECTORY_FN), 
     steps_per_save, 
