@@ -53,7 +53,7 @@ parser.add_argument("-r", "--resume", help="Resume simulation from an existing p
 parser.add_argument("-g", "--gpu", default="", help="Choose CUDA device(s) to target [note - ANI must run on GPU 0]")
 parser.add_argument("-d", "--duration", default="1ns", help="Duration of simulation")
 parser.add_argument("-f", "--savefreq", default="1ps", help="Interval for all reporters to save data")
-parser.add_argument("-s", "--stepsize", default="4fs", help="Step size")
+parser.add_argument("-s", "--stepsize", default="2fs", help="Step size")
 
 args = parser.parse_args()
 
