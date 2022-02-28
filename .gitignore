@@ -1,4 +1,5 @@
 outputs/*
+outputs_failed_backup/*
 torchani
 openmm-ml
 model.pt
