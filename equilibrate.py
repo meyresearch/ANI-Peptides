@@ -52,8 +52,8 @@ def equilibrate(
         coords.topology, 
         nonbondedMethod=PME,
         nonbondedCutoff=1*nanometer,
-        constraints=AllBonds,
-        hydrogenMass=4*amu,
+        constraints=HBonds,
+        hydrogenMass=1*amu,
     )
     # Create constant temp integrator
     integrator = LangevinMiddleIntegrator(
@@ -128,7 +128,7 @@ pdb = PDBFile(TARGET_PDB)
 # Load pdb into modeller and add solvent
 modeller = Modeller(pdb.topology, pdb.positions)
 modeller.addHydrogens(forcefield)
-modeller.addSolvent(forcefield, model='tip3p', neutralize=False, padding=0.7*nanometer)
+modeller.addSolvent(forcefield, model='tip3p', neutralize=False, padding=1*nanometer)
 # modeller.addExtraParticles(forcefield)
 print("periodic vectors: ", modeller.topology.getPeriodicBoxVectors())
 print("cell dimensions: ", modeller.topology.getUnitCellDimensions())
