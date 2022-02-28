@@ -21,7 +21,7 @@ TRAJECTORY_FN = "trajectory.dcd"
 STATE_DATA_FN = "state_data.csv"
 TOPOLOGY_FN = "topology.pdb"
 SOLVATED_FN = ""
-
+FORCEFIELD = "amber"
 
 # Equilibration function - Constant pressure & temp
 
@@ -111,7 +111,7 @@ TARGET_PDB = args.pdb
 
 # Load sample peptide
 pdb = PDBFile(TARGET_PDB)
-pdb.topology.setPeriodicBoxVectors(None)
+# pdb.topology.setPeriodicBoxVectors(None)
 
 # Create AMBER forcefield
 forcefield = ForceField(
@@ -127,9 +127,9 @@ os.chdir(os.path.join("outputs", output_dir))
 
 # Load pdb into modeller and add solvent
 modeller = Modeller(pdb.topology, pdb.positions)
-# modeller.addExtraParticles(forcefield)
 modeller.addHydrogens(forcefield)
-modeller.addSolvent(forcefield, model='tip3p', neutralize=False)
+modeller.addExtraParticles(forcefield)
+modeller.addSolvent(forcefield, model='tip3p', neutralize=False, padding=1*nanometers)
 
 step_size = 4 * femtoseconds
 
