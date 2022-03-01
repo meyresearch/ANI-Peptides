@@ -1,5 +1,6 @@
 outputs/*
 outputs_failed_backup/*
+outputs_backup_failed
 torchani
 openmm-ml
 model.pt
@@ -8,3 +9,4 @@ animodel.pt
 .vscode
 *.pyc
 **/__pycache__/
+notes/

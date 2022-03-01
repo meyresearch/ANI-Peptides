@@ -61,7 +61,9 @@ def free_energy(phi, psi):
     extent = [xedges[0], xedges[-1], yedges[0], yedges[-1]]
 
     # delta G = RT*ln(P)
-    heatmap = np.log(heatmap/heatmap.max()) * (8.314/4.184) * temperature * -0.001
+    with np.errstate(divide='ignore'):
+        heatmap = np.log(heatmap/heatmap.sum()) * (8.314/4.184) * temperature * -0.001
+    heatmap[np.isinf(heatmap)] = np.nan
     plt.imshow(heatmap, extent=extent, origin='lower', interpolation=None, cmap='gist_earth')
     ax = plt.gca()
     ax.xaxis.set_major_formatter(plt.FuncFormatter(degrees_fmt))
@@ -79,9 +81,10 @@ def timetrace(phi, psi):
     fig, axs = plt.subplots(2,1,sharex=True, dpi=500)
     ticks = np.arange(-180, 181, 90)
     degrees_fmt = lambda x, _: f"{x}°"
+    x = np.arange(len(psi))
     for j, name in enumerate((r'$\phi$', r'$\psi$')):
         ax = axs[j]
-        ax.plot(angles[j], linewidth=0.1)
+        ax.scatter(x, angles[j], marker=".", s=0.1)
         ax.grid(color="black", alpha=0.2, linewidth=0.3, linestyle="--")
         ax.set_yticks(ticks)
         ax.set(ylabel=name, ylim=(-180, 180))
