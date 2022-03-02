@@ -5,10 +5,13 @@ A collection of scripts to equilibrate and perform production runs of peptides u
 ## Installation
 
 Developed on Ubuntu 20.4 with Nvidia driver 510 and CUDA 11.6
+
 Tested working on Ubuntu 20.4 Nvidia driver 495 and CUDA 11.5
+
 Minimum CUDA 11.4 required
 
 ```
+git clone https://github.com/meyresearch/ANI-Peptides && cd ./ANI-Peptides
 conda env create -n ani_test -f environment.yml
 git clone https://github.com/meyresearch/openmm-ml
 pip install ./openmm-ml/.
