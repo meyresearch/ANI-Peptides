@@ -111,6 +111,19 @@ peptide_indices = [
     if atom.residue.name != "HOH"
 ]
 
+# for convenience, create "topology.pdb" of the raw peptide, as it is saved in the dcd.
+# this is helpful for analysis scripts which rely on it down the line
+modeller = app.Modeller(
+    pdb.topology, 
+    pdb.positions
+)
+modeller.deleteWater()
+pdb.writeFile(
+    modeller.getTopology(),
+    modeller.getPositions(),
+    open(os.path.join(output_dir, "topology.pdb"), "w")
+)
+
 def makeSystem(ff):
     return ff.createSystem(
         pdb.topology, 
