@@ -1,0 +1,20 @@
+# name: ani
+channels:
+  - defaults
+  - conda-forge
+  - mmh
+dependencies:
+  - openmm-torch
+  - openmm
+  - cudatoolkit=11.5
+  - torchani
+  - pytorch
+  - python=3.9
+  - ipykernel
+  - pandas
+  - matplotlib
+  - seaborn
+  - mdanalysis
+  - mdtraj
+  - nnpops
+# prefix: /home/mbowley/miniconda3/envs/ani

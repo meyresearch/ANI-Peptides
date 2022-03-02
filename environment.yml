@@ -1,6 +1,8 @@
 name: ani
 channels:
   - defaults
+  - conda-forge
+  - mmh
 dependencies:
   - openmm-torch
   - openmm
