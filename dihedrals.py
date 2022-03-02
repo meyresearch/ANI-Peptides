@@ -124,7 +124,12 @@ top = md.load(TOP).topology
 
 # Test there's enough RAM before starting analysis
 print("Attempting to preallocate result array")
-n_dihedrals = top.n_residues - 1
+
+# use n-1 for uncapped
+# n_dihedrals = top.n_residues - 1
+# use n-2 for capped
+n_dihedrals = top.n_residues - 2
+
 phis = np.zeros((total_frames, n_dihedrals), dtype=float)
 psis = np.zeros((total_frames, n_dihedrals), dtype=float)
 print("Success, there should be enough RAM")
@@ -151,16 +156,18 @@ print("Dihedral analysis complete")
 # phis *= -1
 # psis *= -1
 
-for i, (phi, psi) in enumerate(zip(phis.T, psis.T)):
+residues = tuple(top.residues)
+
+for phi, psi, res1, res2 in zip(phis.T, psis.T, residues, residues[1:]):
     for title, plotter in plotters.items():
         plt.figure(0, facecolor="white", dpi=500)
-        plt.title(f"{title} [dihedral {i}-{i+1}]")
+        plt.title(f"{title} [dihedral {res1}-{res2}]")
         ax = plt.gca()
         ax.set_aspect(1)
         plotter(phi, psi)
         plt.tight_layout()
-        plt.savefig(os.path.join(output_dir, f"{title}_{i}_{i+1}.png"))
+        plt.savefig(os.path.join(output_dir, f"{title}_{res1}_{res2}.png"))
         plt.clf()
-        print(f"Saved {title}")
+        print(f"Saved {res1}-{res2} {title}")
 
 print("Done")
