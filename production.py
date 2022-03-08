@@ -54,7 +54,8 @@ parser.add_argument("-g", "--gpu", default="", help="Choose CUDA device(s) to ta
 parser.add_argument("-d", "--duration", default="1ns", help="Duration of simulation")
 parser.add_argument("-f", "--savefreq", default="1ps", help="Interval for all reporters to save data")
 parser.add_argument("-s", "--stepsize", default="2fs", help="Integrator step size")
-parser.add_argument("-c", "--frictioncoeff", default="1ps", help="Integrator friction coeff [your value]^-1 ie for 0.1fs^-1 put in 0.1fs")
+parser.add_argument("-c", "--frictioncoeff", default="1ps", help="Integrator friction coeff [your value]^-1 ie for 0.1fs^-1 put in 0.1fs. The unit but not the value will be converted to its reciprocal.")
+parser.add_argument("-np", "--nonperiodic", action=argparse.BooleanOptionalAction, help="Prevent periodic boundary conditions from being applied")
 
 args = parser.parse_args()
 
@@ -65,6 +66,8 @@ duration = parse_quantity(args.duration)
 savefreq = parse_quantity(args.savefreq)
 stepsize = parse_quantity(args.stepsize)
 frictioncoeff = parse_quantity(args.frictioncoeff)
+
+frictioncoeff = frictioncoeff._value/frictioncoeff.unit
 
 total_steps = int(duration / stepsize)
 steps_per_save = int(savefreq / stepsize)
@@ -105,7 +108,8 @@ else:
 
 # Load peptide
 pdb = app.PDBFile(pdb)
-# pdb.topology.setPeriodicBoxVectors(None)
+if args.nonperiodic:
+    pdb.topology.setPeriodicBoxVectors(None)
 
 peptide_indices = [
     atom.index 
@@ -130,7 +134,7 @@ def makeSystem(ff):
     return ff.createSystem(
         pdb.topology, 
         # nonbondedMethod = app.CutoffNonPeriodic,
-        nonbondedMethod = app.PME,
+        nonbondedMethod = app.CutoffNonPeriodic if args.nonperiodic else app.PME,
         nonbondedCutoff = 1*unit.nanometer,
         constraints = app.AllBonds,
         hydrogenMass = 4*unit.amu,
@@ -169,7 +173,7 @@ properties = {'CudaDeviceIndex': args.gpu}
 # Create constant temp integrator
 integrator = openmm.LangevinMiddleIntegrator(
     300*unit.kelvin,
-    1/frictioncoeff,
+    frictioncoeff,
     stepsize
 )
 # Create simulation and set initial positions
