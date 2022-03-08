@@ -53,7 +53,8 @@ parser.add_argument("-r", "--resume", help="Resume simulation from an existing p
 parser.add_argument("-g", "--gpu", default="", help="Choose CUDA device(s) to target [note - ANI must run on GPU 0]")
 parser.add_argument("-d", "--duration", default="1ns", help="Duration of simulation")
 parser.add_argument("-f", "--savefreq", default="1ps", help="Interval for all reporters to save data")
-parser.add_argument("-s", "--stepsize", default="2fs", help="Step size")
+parser.add_argument("-s", "--stepsize", default="2fs", help="Integrator step size")
+parser.add_argument("-c", "--frictioncoeff", default="1ps", help="Integrator friction coeff [your value]^-1 ie for 0.1fs^-1 put in 0.1fs")
 
 args = parser.parse_args()
 
@@ -63,6 +64,7 @@ resume = args.resume
 duration = parse_quantity(args.duration)
 savefreq = parse_quantity(args.savefreq)
 stepsize = parse_quantity(args.stepsize)
+frictioncoeff = parse_quantity(args.frictioncoeff)
 
 total_steps = int(duration / stepsize)
 steps_per_save = int(savefreq / stepsize)
@@ -167,7 +169,7 @@ properties = {'CudaDeviceIndex': args.gpu}
 # Create constant temp integrator
 integrator = openmm.LangevinMiddleIntegrator(
     300*unit.kelvin,
-    1/unit.picosecond,
+    1/frictioncoeff,
     stepsize
 )
 # Create simulation and set initial positions
