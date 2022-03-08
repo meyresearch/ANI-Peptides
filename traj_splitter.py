@@ -94,9 +94,12 @@ for i, chunk in enumerate(traj):
     # this is not ideal memory usage and might cause problems for large trajectories.
     # we're iteratively loading and processing a trajectory, just to accumulate it all in memory then dump into a .npz
     # Ideally msm analysis should be able to open a collection of short trajs iteratively, rather thank from a single .npz archve
-    # chunk_xyzs.append(chunk.xyz)
-    # chunk_dihedrals.append(md.compute_phi(chunk))
-    # chunk_dihedrals.append(md.compute_psi())
+    chunk_xyzs.append(chunk.xyz)
+    dihedrals = np.zeros((len(chunk), 2, top.n_residues - 2))
+    md.compute_phi(chunk)
+    dihedrals[:, 0, :] = md.compute_phi(chunk)[1]
+    dihedrals[:, 1, :] = md.compute_psi(chunk)[1]
+    chunk_dihedrals.append(dihedrals)
 
     subtraj_savename = os.path.join(output_dir, f"{i}.{args.format}")
     with md.open(subtraj_savename, mode="w") as fh:
@@ -113,7 +116,20 @@ for i, chunk in enumerate(traj):
 print("Trajectory splitting complete" + " "*40)
 
 print("Creating .NPZ archive...")
-archive_savename = os.path.join(output_dir, f"traj_split_archive")
-np.savez(archive_savename, *chunk_xyzs)
+
+# this is gross but it works
+chunk_xyzs = np.vstack(chunk_xyzs)
+chunk_dihedrals = np.vstack(chunk_dihedrals)
+print(chunk_xyzs.shape)
+print(chunk_dihedrals.shape)
+
+np.savez(
+    os.path.join(output_dir, f"coords_archive"), 
+    chunk_xyzs
+)
+np.savez(
+    os.path.join(output_dir, f"dihedrals_archive"), 
+    dihedrals
+)
 
 print("Done")
