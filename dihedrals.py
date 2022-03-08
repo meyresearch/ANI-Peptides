@@ -158,6 +158,7 @@ print("Dihedral analysis complete")
 
 residues = tuple(top.residues)
 
+# produce graphs for individual residue pairs
 for phi, psi, res1, res2 in zip(phis.T, psis.T, residues, residues[1:]):
     for title, plotter in plotters.items():
         plt.figure(0, facecolor="white", dpi=500)
@@ -169,5 +170,17 @@ for phi, psi, res1, res2 in zip(phis.T, psis.T, residues, residues[1:]):
         plt.savefig(os.path.join(output_dir, f"{title}_{res1}_{res2}.png"))
         plt.clf()
         print(f"Saved {res1}-{res2} {title}")
+
+# produce single plots for all residue pairs
+for title, plotter in plotters.items():
+    plt.figure(0, facecolor="white", dpi=500)
+    plt.title(f"{title} [Entire Peptide]")
+    ax = plt.gca()
+    ax.set_aspect(1)
+    plotter(phis.reshape(-1), psis.reshape(-1))
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir, f"{title}_entire_peptide.png"))
+    plt.clf()
+    print(f"Saved Entire Peptide {title}")
 
 print("Done")
