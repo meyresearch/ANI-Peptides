@@ -21,7 +21,7 @@ CHECKPOINT_FN = "checkpoint.chk"
 TRAJECTORY_FN = "trajectory.dcd"
 STATE_DATA_FN = "state_data.csv"
 
-valid_ffs = ['ani', 'amber', "ani_mixed"]
+valid_ffs = ['ani2x', 'ani1ccx', 'amber', "ani2x_mixed", "ani1ccx_mixed"]
 
 # basic quantity string parsing ("1.2ns" -> openmm.Quantity)
 unit_labels = {
@@ -136,8 +136,8 @@ def makeSystem(ff):
         # nonbondedMethod = app.CutoffNonPeriodic,
         nonbondedMethod = app.CutoffNonPeriodic if args.nonperiodic else app.PME,
         nonbondedCutoff = 1*unit.nanometer,
-        constraints = app.AllBonds,
-        hydrogenMass = 4*unit.amu,
+        # constraints = app.AllBonds,
+        # hydrogenMass = 4*unit.amu,
     )
 
 if forcefield == "amber":    # Create AMBER system
@@ -145,11 +145,15 @@ if forcefield == "amber":    # Create AMBER system
         'amber14-all.xml',
         'amber14/tip3p.xml'
     ))
-elif forcefield == "ani":    # Create ANI system
+elif forcefield == "ani2x":    # Create ANI system
     system = makeSystem(MLPotential(
         'ani2x'
     ))
-elif forcefield == "ani_mixed":    # Create mixed ANI/AMBER system
+elif forcefield == "ani1ccx":    # Create ANI system
+    system = makeSystem(MLPotential(
+        'ani1ccx'
+    ))
+elif forcefield == "ani2x_mixed":    # Create mixed ANI/AMBER system
     amber_system = makeSystem(app.ForceField(
         'amber14-all.xml',
         'amber14/tip3p.xml'
@@ -157,6 +161,18 @@ elif forcefield == "ani_mixed":    # Create mixed ANI/AMBER system
     # Select protein atoms to be simulated by ANI2x
     # Water will be simulated by AMBER for speedup
     system = MLPotential('ani2x').createMixedSystem(
+        pdb.topology, 
+        amber_system, 
+        peptide_indices
+    )
+elif forcefield == "ani1ccx_mixed":    # Create mixed ANI/AMBER system
+    amber_system = makeSystem(app.ForceField(
+        'amber14-all.xml',
+        'amber14/tip3p.xml'
+    ))
+    # Select protein atoms to be simulated by ANI2x
+    # Water will be simulated by AMBER for speedup
+    system = MLPotential('ani1ccx').createMixedSystem(
         pdb.topology, 
         amber_system, 
         peptide_indices
