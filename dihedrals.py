@@ -80,7 +80,11 @@ def timetrace(phi, psi):
     angles = (phi, psi)
     fig, axs = plt.subplots(2,1,sharex=True, dpi=500)
     ticks = np.arange(-180, 181, 90)
-    degrees_fmt = lambda x, _: f"{x}°"
+    degrees_fmt = lambda y, _: f"{y}°"
+    if len(psi) < 1e6:
+        time_fmt = lambda x, _: f"{x/1e3} ns"
+    else:
+        time_fmt = lambda x, _: f"{x/1e6} µs"
     x = np.arange(len(psi))
     for j, name in enumerate((r'$\phi$', r'$\psi$')):
         ax = axs[j]
@@ -89,6 +93,7 @@ def timetrace(phi, psi):
         ax.set_yticks(ticks)
         ax.set(ylabel=name, ylim=(-180, 180))
         ax.yaxis.set_major_formatter(plt.FuncFormatter(degrees_fmt))
+        ax.xaxis.set_major_formatter(plt.FuncFormatter(time_fmt))
     plt.xlabel('step')
 
 plotters = {
@@ -100,15 +105,9 @@ plotters = {
 TRAJ = os.path.join(args.prod_dir, TRAJECTORY_FN)
 TOP = os.path.join(args.prod_dir, TOPOLOGY_FN)
 
-print("Initialising...")
-stride = 10000
-t = md.iterload(TRAJ, top=TOP, chunk=1, stride=stride)
-total_frames = 0
-for _ in t:
-    total_frames += 1
-    print(f"Counting chunks... {total_frames}   ", end="\r")
-total_frames *= stride
-print(f"{total_frames} frames total             ")
+with md.formats.DCDTrajectoryFile(TRAJ, mode="r") as dcd:
+    total_frames = len(dcd)
+    print(f"{total_frames} frames total")
 
 top = md.load(TOP).topology
 # # we need to iterate the backbone in groups of four atoms, going from alpha carbon to alpha carbon
@@ -139,18 +138,24 @@ time_start = time.time()
 chunk_size = 50000
 traj = md.iterload(TRAJ, top=TOP, chunk=chunk_size)
 for i, chunk in enumerate(traj):
+    frames_remaining = total_frames - (i * chunk_size)
+
     _, chunk_phis = md.compute_phi(chunk)
     _, chunk_psis = md.compute_psi(chunk)
 
+    # trim trailing zeros from final chunk (weird artifact from iterload)
+    if frames_remaining < chunk_size:
+        trim_len = len(np.trim_zeros(chunk_phis[:, 0], trim="b"))
+        chunk_phis = chunk_phis[:trim_len, :]
+        chunk_psis = chunk_psis[:trim_len, :]
+
     chunk_size = len(chunk)
-    # res = md.compute_dihedrals(chunk, indices)
     phis[i*chunk_size:(i+1)*chunk_size, :] = np.rad2deg(chunk_phis)
     psis[i*chunk_size:(i+1)*chunk_size, :] = np.rad2deg(chunk_psis)
     speed = chunk_size // (time.time() - time_start)
     time_start = time.time()
-    frames_remaining = total_frames - (i * chunk_size)
     print(f"{i*100*chunk_size/total_frames:.1f}%, {speed:.1f} frames per sec, {frames_remaining} frames remaining                 ", end="\r")
-print("Dihedral analysis complete")
+print("\nDihedral analysis complete")
 
 # Can manually shoehorn the data into particular orientations here
 # phis *= -1
