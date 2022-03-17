@@ -129,7 +129,7 @@ pdb = PDBFile(TARGET_PDB)
 modeller = Modeller(pdb.topology, pdb.positions)
 modeller.addHydrogens(forcefield)
 modeller.addExtraParticles(forcefield)
-modeller.addSolvent(forcefield, model='tip3p', neutralize=False, padding=1*nanometers)
+modeller.addSolvent(forcefield, model='tip3p', neutralize=False, padding=1*nanometers) # numAdded=200)# numAdded=871)# 
 
 step_size = 4 * femtoseconds
 
@@ -138,8 +138,8 @@ simulation = equilibrate(
     modeller,
     forcefield,
     temp_range = range(0, 300, 20),
-    time_per_temp_increment = 0.05 * nanoseconds,
-    time_final_stage = 1 * nanoseconds,
+    time_per_temp_increment = 0.01 * nanoseconds, # was 0.05
+    time_final_stage = 0.5 * nanoseconds, # was 1.0
     step_size = step_size,
 )
 
