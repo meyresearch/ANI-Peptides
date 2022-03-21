@@ -36,18 +36,6 @@ if not all(filename in files_available for filename in files_required):
 output_dir = os.path.join(args.prod_dir, f"dihedral_analysis_{datetime.datetime.now().strftime('%H%M%S_%d%m%y')}")
 os.mkdir(output_dir)
 
-# def ramachandran(R):
-#     # Plot Ramachandran
-#     R.plot(
-#         ax=plt.gca(), 
-#         color = 'black', 
-#         marker = ".", 
-#         # s = (1/fig.dpi), 
-#         ref = True # Set to false to hide blue reference heatmap of ramachandran plot
-#     )
-
-
-
 def free_energy(phi, psi):
     # Plot free energy
     x = phi
@@ -97,7 +85,6 @@ def timetrace(phi, psi):
     plt.xlabel('step')
 
 plotters = {
-    # "Ramachandran": ramachandran,
     "Free Energy Surface": free_energy,
     "Timetrace": timetrace
 }
@@ -110,28 +97,10 @@ with md.formats.DCDTrajectoryFile(TRAJ, mode="r") as dcd:
     print(f"{total_frames} frames total")
 
 top = md.load(TOP).topology
-# # we need to iterate the backbone in groups of four atoms, going from alpha carbon to alpha carbon
-# # first select the backbone
-# backbone = [atom for atom in top.atoms if (atom.is_backbone and atom.name != "O")]
-# # then group into dihedral quartets 
-# dihedral_atomgroups = [backbone[idx:idx+4] for idx, atom in enumerate(backbone) if atom.name in ("C", "N")]
-# # clean up, removing the final atomgroup that doesn't have four atoms in it
-# dihedral_atomgroups = [group for group in dihedral_atomgroups if len(group) == 4]
-# # turn it into np array of indices (as mdtraj wants it)
-# indices = np.array([[atom.index for atom in group] for group in dihedral_atomgroups])
-# print(indices)
 
-# Test there's enough RAM before starting analysis
-print("Attempting to preallocate result array")
-
-# use n-1 for uncapped
-# n_dihedrals = top.n_residues - 1
-# use n-2 for capped
-n_dihedrals = top.n_residues - 2
-
-phis = np.zeros((total_frames, n_dihedrals), dtype=float)
-psis = np.zeros((total_frames, n_dihedrals), dtype=float)
-print("Success, there should be enough RAM")
+# no time to fix indexing so we're doing it like this 
+phis = []
+psis = []
 
 print(f"Starting...")
 time_start = time.time()
@@ -143,23 +112,16 @@ for i, chunk in enumerate(traj):
     _, chunk_phis = md.compute_phi(chunk)
     _, chunk_psis = md.compute_psi(chunk)
 
-    # trim trailing zeros from final chunk (weird artifact from iterload)
-    if frames_remaining < chunk_size:
-        trim_len = len(np.trim_zeros(chunk_phis[:, 0], trim="b"))
-        chunk_phis = chunk_phis[:trim_len, :]
-        chunk_psis = chunk_psis[:trim_len, :]
-
-    chunk_size = len(chunk)
-    phis[i*chunk_size:(i+1)*chunk_size, :] = np.rad2deg(chunk_phis)
-    psis[i*chunk_size:(i+1)*chunk_size, :] = np.rad2deg(chunk_psis)
+    chunk_size = len(chunk_phis)
+    phis.append(np.rad2deg(chunk_phis))
+    psis.append(np.rad2deg(chunk_psis))
     speed = chunk_size // (time.time() - time_start)
     time_start = time.time()
     print(f"{i*100*chunk_size/total_frames:.1f}%, {speed:.1f} frames per sec, {frames_remaining} frames remaining                 ", end="\r")
 print("\nDihedral analysis complete")
 
-# Can manually shoehorn the data into particular orientations here
-# phis *= -1
-# psis *= -1
+phis = np.vstack(phis)
+psis = np.vstack(psis)
 
 residues = tuple(top.residues)
 
