@@ -75,7 +75,7 @@ print(f"{total_frames} frames total             ")
 
 top = md.load(TOP).topology
 heavy_atoms = top.select("symbol != H")
-heavy_atoms = top.select("protein")
+# heavy_atoms = top.select("protein")
 
 print(f"Starting...")
 time_start = time.time()
@@ -94,7 +94,7 @@ for i, chunk in enumerate(traj):
     # this is not ideal memory usage and might cause problems for large trajectories.
     # we're iteratively loading and processing a trajectory, just to accumulate it all in memory then dump into a .npz
     # Ideally msm analysis should be able to open a collection of short trajs iteratively, rather thank from a single .npz archve
-    chunk_xyzs.append(chunk.xyz)
+    chunk_xyzs.append(chunk.xyz.reshape(chunk.xyz.shape[0], -1))
     dihedrals = np.zeros((len(chunk), 2, top.n_residues - 2))
     md.compute_phi(chunk)
     dihedrals[:, 0, :] = md.compute_phi(chunk)[1]
@@ -129,7 +129,7 @@ np.savez(
 )
 np.savez(
     os.path.join(output_dir, f"dihedrals_archive"), 
-    dihedrals
+    chunk_dihedrals
 )
 
 print("Done")
