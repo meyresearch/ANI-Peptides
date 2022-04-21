@@ -9,7 +9,7 @@ import os.path
 import datetime
 from openmm import unit
 
-TRAJECTORY_FN = "trajectory.dcd" 
+TRAJECTORY_FN = "trajectory_reimaged.dcd" 
 TOPOLOGY_FN = "topology.pdb"
 
 # basic quantity string parsing ("1.2ns" -> openmm.Quantity)
@@ -64,14 +64,9 @@ TRAJ = os.path.join(args.prod_dir, TRAJECTORY_FN)
 TOP = os.path.join(args.prod_dir, TOPOLOGY_FN)
 
 print("Initialising...")
-stride = 10000
-t = md.iterload(TRAJ, top=TOP, chunk=1, stride=stride)
-total_frames = 0
-for chunk in t:
-    total_frames += 1
-    print(f"Counting chunks... {total_frames}   ", end="\r")
-total_frames *= stride
-print(f"{total_frames} frames total             ")
+with md.formats.DCDTrajectoryFile(TRAJ, mode="r") as dcd:
+    total_frames = len(dcd)
+print(f"{total_frames} frames total")
 
 top = md.load(TOP).topology
 # heavy_atoms = top.select("symbol != H")
@@ -84,14 +79,13 @@ reference=None
 chunk_xyzs = []
 chunk_dihedrals = []
 
-# dumb hack to make sure the NHMe terminus is properly connected to the chain so i can reimage the molecule for ani properly
-atoms = list(top.atoms)
-top.add_bond(atoms[28], atoms[37])
-sorted_bonds = sorted(top.bonds, key=lambda bond: bond[0].index)
-sorted_bonds = np.asarray([[b0.index, b1.index] for b0, b1 in sorted_bonds], dtype=np.int32)
+# # dumb hack to make sure the NHMe terminus is properly connected to the chain so i can reimage the molecule for ani properly
+# atoms = list(top.atoms)
+# top.add_bond(atoms[28], atoms[37])
+# sorted_bonds = sorted(top.bonds, key=lambda bond: bond[0].index)
+# sorted_bonds = np.asarray([[b0.index, b1.index] for b0, b1 in sorted_bonds], dtype=np.int32)
 
 for i, chunk in enumerate(traj):
-    chunk.make_molecules_whole(inplace=True, sorted_bonds=sorted_bonds)
     if not reference:
         reference = chunk
     chunk = chunk.superpose(
