@@ -11,7 +11,7 @@ import numpy as np
 import os.path
 import datetime
 
-TRAJECTORY_FN = "trajectory.dcd" 
+TRAJECTORY_FN = "trajectory_reimaged.dcd" 
 TOPOLOGY_FN = "topology.pdb"
 
 parser = argparse.ArgumentParser()
