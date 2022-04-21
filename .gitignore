@@ -10,3 +10,4 @@ animodel.pt
 *.pyc
 **/__pycache__/
 notes/
+long_sims_final/

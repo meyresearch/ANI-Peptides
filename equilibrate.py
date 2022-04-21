@@ -31,7 +31,7 @@ def equilibrate(
     final_pressure: Quantity = 1*atmosphere,
     temp_range: range = range(0, 300, 25),
     output_state_data_filename = "equilibration_state_data.csv",
-    friction_coeff: Quantity = 1/picosecond,
+    friction_coeff: Quantity = 1/femtoseconds,
     step_size: Quantity = 4*femtoseconds,
     time_per_temp_increment: Quantity = 0.005*nanoseconds,
     time_final_stage: Quantity = 0.1*nanoseconds,
@@ -131,15 +131,15 @@ modeller.addHydrogens(forcefield)
 modeller.addExtraParticles(forcefield)
 modeller.addSolvent(forcefield, model='tip3p', neutralize=False, padding=1*nanometers) # numAdded=200)# numAdded=871)# 
 
-step_size = 4 * femtoseconds
+step_size = 1 * femtoseconds
 
 # Equilibrate
 simulation = equilibrate(
     modeller,
     forcefield,
     temp_range = range(0, 300, 20),
-    time_per_temp_increment = 0.01 * nanoseconds, # was 0.05
-    time_final_stage = 0.5 * nanoseconds, # was 1.0
+    time_per_temp_increment = 0.05 * nanoseconds, # was 0.05
+    time_final_stage = 1.0 * nanoseconds, # was 1.0
     step_size = step_size,
 )
 
